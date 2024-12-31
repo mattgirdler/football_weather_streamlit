@@ -41,8 +41,8 @@ st.text("""
 
 tab1, tab2, tab3, tab4 = st.tabs(["Season Scatter Chart", "Per-Match Scatter Chart", "Correlation Bar Chart", "Raw Data"])
 
-multiteam_data = pd.read_csv('../statsbomb-data-analysis/data/weather_impact_summary_multiteam.csv')
-combined_data = pd.read_csv('../statsbomb-data-analysis/data/combined_match_stats_with_weather.csv')
+multiteam_data = pd.read_csv('data/weather_impact_summary_multiteam.csv')
+combined_data = pd.read_csv('data/combined_match_stats_with_weather.csv')
 
 with st.sidebar:
     weather_metric = st.selectbox(
