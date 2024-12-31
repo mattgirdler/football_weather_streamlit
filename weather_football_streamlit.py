@@ -99,9 +99,15 @@ with tab2:
     st.plotly_chart(fig, theme="streamlit")
 
 with tab3:
-    fig = px.bar(filtered_metrics,
+    display_correlation = st.checkbox("Display correlation", value=False) 
+    if display_correlation:
+        fig = px.bar(filtered_metrics,
                 x="team_name",
                 y="correlation")
+    else:
+        fig = px.bar(filtered_metrics,
+                x="team_name",
+                y=match_metric)
     fig.update_layout(dict(title=f"23/24 Season<br><sup>{match_metric_caption} vs {weather_metric_caption}</sup>"))
     st.plotly_chart(fig, theme="streamlit")
 with tab4:
