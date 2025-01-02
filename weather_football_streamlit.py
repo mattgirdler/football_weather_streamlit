@@ -108,8 +108,11 @@ with tab2:
     st.plotly_chart(fig, theme="streamlit")
 
 with tab3:
-    # display_correlation = st.checkbox("Display correlation", value=False) 
-    # if display_correlation:
+    sort_by_team_name = st.checkbox("Sort by team name", value=True)
+    if sort_by_team_name:
+        filtered_metrics = filtered_metrics.sort_values("team_name")
+    else:
+        filtered_metrics = filtered_metrics.sort_values("correlation")
     fig = px.bar(filtered_metrics,
             x="team_name",
             y="correlation")
