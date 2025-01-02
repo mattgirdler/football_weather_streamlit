@@ -60,12 +60,21 @@ with tab1:
         (multiteam_data['match_metric'] == match_metric) &
         (multiteam_data['weather_metric'] == weather_metric)
     ].sort_values("team_name")
-    fig = px.scatter(
-        filtered_metrics,
-        x="team_average_weather_metric",
-        y="team_average_match_metric",
-        color="team_name",
-        trendline="ols")
+    display_team_name = st.checkbox("Display Team Name")
+    if display_team_name:
+        fig = px.scatter(
+            filtered_metrics,
+            x="team_average_weather_metric",
+            y="team_average_match_metric",
+            hover_data=["team_name", "weather_metric", "match_metric", "average_weather_metric", "average_match_metric"],
+            color="team_name")
+    else:
+        fig = px.scatter(
+            filtered_metrics,
+            x="team_average_weather_metric",
+            y="team_average_match_metric",
+            hover_data=["team_name", "weather_metric", "match_metric", "average_weather_metric", "average_match_metric"],
+            trendline="ols")
     fig.update_layout(dict(title=f"23/24 Season<br><sup>{match_metric_caption} vs {weather_metric_caption}</sup>"))
     st.plotly_chart(fig, theme="streamlit")
 
@@ -84,7 +93,7 @@ with tab2:
             y=match_metric,
             color=color_column,
             trendline="ols",
-            hover_data=["opposition_name", "competition_name", "match_date", "kick_off"],
+            hover_data=["team_name", "opposition_name", "competition_name", "match_date", "kick_off"],
         )
     else:
         fig = px.scatter(
@@ -92,7 +101,7 @@ with tab2:
             x=weather_metric,
             y=match_metric,
             trendline="ols",
-            hover_data=["opposition_name", "competition_name", "match_date", "kick_off"],
+            hover_data=["team_name", "opposition_name", "competition_name", "match_date", "kick_off"],
             hover_name="match_date"
         )
     fig.update_layout(dict(title=f"{selected_team} 23/24 Season<br><sup>{match_metric_caption} vs {weather_metric_caption}</sup>"))
