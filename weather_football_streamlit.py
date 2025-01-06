@@ -41,25 +41,37 @@ st.text("""
 
 tab1, tab2, tab3, tab4 = st.tabs(["Season Scatter Chart", "Per-Match Scatter Chart", "Correlation Bar Chart", "Raw Data"])
 
-multiteam_data = pd.read_csv('data/weather_impact_summary_multiteam.csv')
+long_data = pd.read_csv('data/weather_impact_summary_long.csv')
 combined_data = pd.read_csv('data/combined_match_stats_with_weather.csv')
 
 with st.sidebar:
     weather_metric = st.selectbox(
         "Select weather metric",
-        multiteam_data["weather_metric"].unique(),
+        long_data["weather_metric"].unique(),
         index=0)
     match_metric = st.selectbox(
         "Select match metric",
-        multiteam_data["match_metric"].unique(),
+        long_data["match_metric"].unique(),
         index=0)
     match_metric_caption = match_metric.replace("_", " ").title()
     weather_metric_caption = weather_metric.replace("_", " ").title()
+
+filtered_metrics = long_data[
+    (long_data['match_metric'] == match_metric) &
+    (long_data['weather_metric'] == weather_metric)
+].sort_values("team_name")
+# filtered_metrics = filtered_metrics[filtered_metrics["team_name"] != "Arsenal"]
+# filtered_metrics = filtered_metrics[filtered_metrics["team_name"] != "Manchester United"]
+# filtered_metrics = filtered_metrics[filtered_metrics["team_name"] != "Watford"]
+# filtered_metrics = filtered_metrics[filtered_metrics["team_name"] != "West Bromwich Albion"]
+
+# # Rewrite to "Any.()" with excluded_teams list
+# combined_data = combined_data[combined_data["team_name"] != "Arsenal"]
+# combined_data = combined_data[combined_data["team_name"] != "Manchester United"]
+# combined_data = combined_data[combined_data["team_name"] != "Watford"]
+# combined_data = combined_data[combined_data["team_name"] != "West Bromwich Albion"]
+
 with tab1:
-    filtered_metrics = multiteam_data[
-        (multiteam_data['match_metric'] == match_metric) &
-        (multiteam_data['weather_metric'] == weather_metric)
-    ].sort_values("team_name")
     display_team_name = st.checkbox("Display Team Name")
     if display_team_name:
         fig = px.scatter(
@@ -86,6 +98,9 @@ with tab2:
     )
     display_home_away = st.checkbox("Display Home/Away", value=True)
     color_column = "Home/Away" if display_home_away else "team_name"
+
+    # filtered_team_data = filtered_team_data[filtered_team_data["match_id"] != 3893119]
+    # filtered_team_data = filtered_team_data[filtered_team_data["match_id"] != 3895434]
     if display_home_away:
         fig = px.scatter(
             filtered_team_data,
@@ -93,7 +108,7 @@ with tab2:
             y=match_metric,
             color=color_column,
             trendline="ols",
-            hover_data=["team_name", "opposition_name", "competition_name", "match_date", "kick_off"],
+            hover_data=["match_id", "team_name", "opposition_name", "competition_name", "match_date", "kick_off"],
         )
     else:
         fig = px.scatter(
@@ -101,7 +116,7 @@ with tab2:
             x=weather_metric,
             y=match_metric,
             trendline="ols",
-            hover_data=["team_name", "opposition_name", "competition_name", "match_date", "kick_off"],
+            hover_data=["match_id", "team_name", "opposition_name", "competition_name", "match_date", "kick_off"],
             hover_name="match_date"
         )
     fig.update_layout(dict(title=f"{selected_team} 23/24 Season<br><sup>{match_metric_caption} vs {weather_metric_caption}</sup>"))
@@ -116,11 +131,15 @@ with tab3:
     fig = px.bar(filtered_metrics,
             x="team_name",
             y="correlation")
-    #else:
-    #    fig = px.bar(filtered_metrics,
-    #            x="team_name",
-    #            y=match_metric)
-    fig.update_layout(dict(title=f"23/24 Season<br><sup>{match_metric_caption} vs {weather_metric_caption}</sup>"))
+    pearson = round(combined_data[weather_metric].corr(combined_data[match_metric]), 4)
+    fig.add_hline(
+        pearson, line_width=2, line_dash="dash", line_color="white",
+        annotation_text=f"<b>Pearson Value: {pearson}</b>", annotation_position="bottom right",
+        annotation_font_size=14, annotation_font_color="white"
+    )
+    fig.update_layout(dict(
+        title=f"23/24 Season<br><sup>{match_metric_caption} vs {weather_metric_caption}</sup>"
+        ))
     st.plotly_chart(fig, theme="streamlit")
 with tab4:
     st.dataframe(combined_data)
