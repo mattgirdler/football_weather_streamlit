@@ -36,40 +36,78 @@ st.title("Weather vs Football - Data Analysis")
 st.text("""
         This Streamlit app aims to demonstrate the correlation (if any) between adverse weather conditions and football style/results.
 
-        It includes the Statsbomb match metric data from all matches in the 23/24 football season in the Premier League, Championship, League One and League Two. This data is combined with Met Office Pseudo-Observation data for the relevant stadium postcodes and kick-off times for each match.
+        It includes the Statsbomb match metric data from all matches in the 23/24 football season in the Premier League, Championship, League One and League Two. This data is combined with Met Office Best Estimate Observation data for the relevant stadium postcodes and kick-off times for each match.
         """)
 
 tab1, tab2, tab3, tab4 = st.tabs(["Season Scatter Chart", "Per-Match Scatter Chart", "Correlation Bar Chart", "Raw Data"])
 
-long_data = pd.read_csv('data/weather_impact_summary_long.csv')
+# long_data = pd.read_csv('data/weather_impact_summary_long.csv')
 combined_data = pd.read_csv('data/combined_match_stats_with_weather.csv')
 
+weather_values = ["total_rainfall_amount_previous_hour", "wind_speed_10m", "wind_gust_10m", "feels_like_temperature"]
+match_metrics = ["team_match_directness", "team_match_pace_towards_goal", "team_match_gk_pass_distance",
+                 "team_match_gk_long_pass_ratio", "team_match_ball_in_play_time", "team_match_dribble_ratio",
+                 "team_match_high_press_shots_conceded", "team_match_passing_ratio"]
+
 with st.sidebar:
-    weather_metric = st.selectbox(
+    selected_weather_metric = st.selectbox(
         "Select weather metric",
-        long_data["weather_metric"].unique(),
+        weather_values,
         index=0)
-    match_metric = st.selectbox(
+    selected_match_metric = st.selectbox(
         "Select match metric",
-        long_data["match_metric"].unique(),
+        match_metrics,
         index=0)
-    match_metric_caption = match_metric.replace("_", " ").title()
-    weather_metric_caption = weather_metric.replace("_", " ").title()
+    match_metric_caption = selected_match_metric.replace("_", " ").title()
+    weather_metric_caption = selected_weather_metric.replace("_", " ").title()
+    should_apply_weather_metric_upper_limit = st.checkbox("Apply weather metric upper limit") 
+    weather_metric_upper_limit = st.number_input(
+        "Upper limit value",
+        disabled=bool(not should_apply_weather_metric_upper_limit),
+        min_value=0,
+        value=10
+    )
+
+print(selected_weather_metric)
+print(selected_match_metric) 
+
+# Apply an upper limit to a particular weather column to avoid outliers skewing the data
+if should_apply_weather_metric_upper_limit:
+    combined_data[selected_weather_metric] = combined_data[selected_weather_metric].clip(upper=weather_metric_upper_limit)
+
+# Create correlation dataframe
+results = []
+
+average_weather_metric = combined_data[selected_weather_metric].mean()
+average_match_metric = combined_data[selected_weather_metric].mean()
+
+for team_name in combined_data['team_name'].unique():
+    team_stats = combined_data[combined_data['team_name'] == team_name]
+
+    # Precompute team-specific averages for the specified weather and all match metrics
+    team_average_weather_metric = team_stats[selected_weather_metric].mean()
+    team_average_match_metrics = team_stats[selected_match_metric].mean()
+
+    results.append({
+        "team_name": team_name,
+        "weather_metric": selected_weather_metric,
+        "match_metric": selected_match_metric,
+        "average_weather_metric": average_weather_metric,
+        "average_match_metric": average_match_metric,
+        "team_average_match_metric": team_average_match_metrics,
+        "team_average_weather_metric": team_average_weather_metric,
+        "correlation": team_stats[selected_weather_metric].corr(team_stats[selected_match_metric])
+    })
+
+long_data = pd.DataFrame(results)
 
 filtered_metrics = long_data[
-    (long_data['match_metric'] == match_metric) &
-    (long_data['weather_metric'] == weather_metric)
+    (long_data['match_metric'] == selected_match_metric) &
+    (long_data['weather_metric'] == selected_weather_metric)
 ].sort_values("team_name")
-# filtered_metrics = filtered_metrics[filtered_metrics["team_name"] != "Arsenal"]
-# filtered_metrics = filtered_metrics[filtered_metrics["team_name"] != "Manchester United"]
-# filtered_metrics = filtered_metrics[filtered_metrics["team_name"] != "Watford"]
-# filtered_metrics = filtered_metrics[filtered_metrics["team_name"] != "West Bromwich Albion"]
 
-# # Rewrite to "Any.()" with excluded_teams list
-# combined_data = combined_data[combined_data["team_name"] != "Arsenal"]
-# combined_data = combined_data[combined_data["team_name"] != "Manchester United"]
-# combined_data = combined_data[combined_data["team_name"] != "Watford"]
-# combined_data = combined_data[combined_data["team_name"] != "West Bromwich Albion"]
+pearson = round(combined_data[selected_weather_metric].corr(combined_data[selected_match_metric]), 4)
+print(pearson)
 
 with tab1:
     display_team_name = st.checkbox("Display Team Name")
@@ -87,7 +125,10 @@ with tab1:
             y="team_average_match_metric",
             hover_data=["team_name", "weather_metric", "match_metric", "average_weather_metric", "average_match_metric"],
             trendline="ols")
-    fig.update_layout(dict(title=f"23/24 Season<br><sup>{match_metric_caption} vs {weather_metric_caption}</sup>"))
+    if should_apply_weather_metric_upper_limit:
+        fig.update_layout(dict(title=f"23/24 Season<br><sup>{match_metric_caption} vs {weather_metric_caption} (upper limit = {weather_metric_upper_limit}) </sup>"))
+    else:
+        fig.update_layout(dict(title=f"23/24 Season<br><sup>{match_metric_caption} vs {weather_metric_caption}</sup>"))
     st.plotly_chart(fig, theme="streamlit")
 
 with tab2:
@@ -99,13 +140,11 @@ with tab2:
     display_home_away = st.checkbox("Display Home/Away", value=True)
     color_column = "Home/Away" if display_home_away else "team_name"
 
-    # filtered_team_data = filtered_team_data[filtered_team_data["match_id"] != 3893119]
-    # filtered_team_data = filtered_team_data[filtered_team_data["match_id"] != 3895434]
     if display_home_away:
         fig = px.scatter(
             filtered_team_data,
-            x=weather_metric,
-            y=match_metric,
+            x=selected_weather_metric,
+            y=selected_match_metric,
             color=color_column,
             trendline="ols",
             hover_data=["match_id", "team_name", "opposition_name", "competition_name", "match_date", "kick_off"],
@@ -113,13 +152,16 @@ with tab2:
     else:
         fig = px.scatter(
             filtered_team_data,
-            x=weather_metric,
-            y=match_metric,
+            x=selected_weather_metric,
+            y=selected_match_metric,
             trendline="ols",
             hover_data=["match_id", "team_name", "opposition_name", "competition_name", "match_date", "kick_off"],
             hover_name="match_date"
         )
-    fig.update_layout(dict(title=f"{selected_team} 23/24 Season<br><sup>{match_metric_caption} vs {weather_metric_caption}</sup>"))
+    if should_apply_weather_metric_upper_limit:
+        fig.update_layout(dict(title=f"{selected_team} 23/24 Season<br><sup>{match_metric_caption} vs {weather_metric_caption} (upper limit = {weather_metric_upper_limit}) </sup>"))
+    else:
+        fig.update_layout(dict(title=f"{selected_team} 23/24 Season<br><sup>{match_metric_caption} vs {weather_metric_caption}</sup>"))
     st.plotly_chart(fig, theme="streamlit")
 
 with tab3:
@@ -131,18 +173,25 @@ with tab3:
     fig = px.bar(filtered_metrics,
             x="team_name",
             y="correlation")
-    pearson = round(combined_data[weather_metric].corr(combined_data[match_metric]), 4)
     fig.add_hline(
         pearson, line_width=2, line_dash="dash", line_color="white",
         annotation_text=f"<b>Pearson Value: {pearson}</b>", annotation_position="bottom right",
         annotation_font_size=14, annotation_font_color="white"
     )
-    fig.update_layout(dict(
-        title=f"23/24 Season<br><sup>{match_metric_caption} vs {weather_metric_caption}</sup>"
-        ))
+    if should_apply_weather_metric_upper_limit:
+        fig.update_layout(dict(
+            title=f"23/24 Season<br><sup>{match_metric_caption} vs {weather_metric_caption} (upper limit = {weather_metric_upper_limit}) </sup>"
+            ))
+    else:
+        fig.update_layout(dict(
+            title=f"23/24 Season<br><sup>{match_metric_caption} vs {weather_metric_caption}</sup>"
+            ))
     st.plotly_chart(fig, theme="streamlit")
 with tab4:
+    st.write("Full match metrics and weather observations")
     st.dataframe(combined_data)
+    st.write("Team metrics/correlations")
+    st.dataframe(filtered_metrics)
 
 
 st.text("""
