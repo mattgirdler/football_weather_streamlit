@@ -41,7 +41,6 @@ st.text("""
 
 tab1, tab2, tab3, tab4 = st.tabs(["Season Scatter Chart", "Per-Match Scatter Chart", "Correlation Bar Chart", "Raw Data"])
 
-# long_data = pd.read_csv('data/weather_impact_summary_long.csv')
 combined_data = pd.read_csv('data/combined_match_stats_with_weather.csv')
 
 weather_values = ["total_rainfall_amount_previous_hour", "wind_speed_10m", "wind_gust_10m", "feels_like_temperature"]
@@ -67,9 +66,6 @@ with st.sidebar:
         min_value=0,
         value=10
     )
-
-print(selected_weather_metric)
-print(selected_match_metric) 
 
 # Apply an upper limit to a particular weather column to avoid outliers skewing the data
 if should_apply_weather_metric_upper_limit:
